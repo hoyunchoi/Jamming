@@ -187,3 +187,5 @@ Thumbs.db
 *.wsf
 bin/**
 # End of https://www.toptal.com/developers/gitignore/api/executable
+
+JSL.hpp
