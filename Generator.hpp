@@ -9,6 +9,7 @@
 #include "CSV.hpp"
 #include "Networks.hpp"
 #include "Router.hpp"
+#include "fileName.hpp"
 #include "pcg_random.hpp"
 #include "stringFormat.hpp"
 
@@ -24,14 +25,16 @@ struct Generator {
     //* Dynamics parameters
     double m_strategy;
     double m_newPacket;
+    unsigned m_maxIteration;
 
     //* Random variables
+    int m_randomEngineSeed;
     pcg32 m_randomEngine;
     std::uniform_int_distribution<unsigned> m_nodeDistribution;
 
     //* Save the information of dynamics
-    unsigned m_numActivePackets;
-    std::vector<unsigned> m_numActiveHistory;
+    unsigned m_totPacket;
+    std::vector<unsigned> m_totPacketHistory;
 
     //* --------------------------- functions --------------------------------
   public:
@@ -41,10 +44,13 @@ struct Generator {
               const std::vector<std::vector<unsigned>>&, //* Full distance of netowrk
               const double&,                             //* Strategy parameter
               const unsigned&,                           //* Number of new packets per unit time
-              const pcg32&);                             //* Random Engine
+              const int&);                               //* Random Engine Seed
 
     //* Run the generator
     const unsigned run(const unsigned&);
+
+    //* Save
+    void save(const std::string&) const;
 
   protected:
     void getFullDistance(const std::vector<std::set<unsigned>>&);
@@ -57,11 +63,11 @@ Generator::Generator(const Network<unsigned>& t_network,
                      const std::vector<std::vector<unsigned>>& t_fullDistance,
                      const double& t_strategy,
                      const unsigned& t_newPacket,
-                     const pcg32& t_randomEngine)
+                     const int& t_randomEngineSeed)
     : m_fullDistance(t_fullDistance),
       m_strategy(t_strategy),
       m_newPacket(t_newPacket),
-      m_randomEngine(t_randomEngine) {
+      m_randomEngineSeed(t_randomEngineSeed) {
     //* Get network information
     m_networkSize = t_network.size;
     m_routers.reserve(m_networkSize);
@@ -73,20 +79,37 @@ Generator::Generator(const Network<unsigned>& t_network,
 
     //* Random variables
     m_nodeDistribution.param(std::uniform_int_distribution<unsigned>::param_type(0, m_networkSize - 1));
+    m_randomEngine.seed(m_randomEngineSeed);
 
     //* Initialize information of dynamics
-    m_numActivePackets = 0;
+    m_totPacket = 0;
 }
 
 const unsigned Generator::run(const unsigned& t_maxIteration) {
-    m_numActiveHistory.reserve(t_maxIteration);
+    m_maxIteration = t_maxIteration;
+    m_totPacketHistory.reserve(m_maxIteration);
 
-    for (unsigned iter = 0; iter < t_maxIteration; ++iter) {
+    for (unsigned iter = 0; iter < m_maxIteration; ++iter) {
         generatePackets();
         movePackets();
-        m_numActiveHistory.emplace_back(m_numActivePackets);
+        m_totPacketHistory.emplace_back(m_totPacket);
     }
-    return m_numActivePackets;
+    return m_totPacket;
+}
+
+void Generator::save(const std::string& t_dirPath) const {
+    //* Prefix of dynamics
+    const std::string dynamicsPrefix = getDynamicsName(std::make_tuple(m_strategy,
+                                                                       m_newPacket,
+                                                                       m_maxIteration,
+                                                                       m_randomEngineSeed));
+
+    //* Total packet number
+    const std::string totPacketDir = t_dirPath + "totPacket/";
+    CSV::generateDirectory(totPacketDir);
+
+    //* Save history of number of active packets
+    CSV::write(totPacketDir + dynamicsPrefix + ".csv", m_totPacketHistory);
 }
 
 //* Generator new packets and store to model
@@ -111,7 +134,7 @@ void Generator::generatePackets() {
         // destination
         // << "\n";
     }
-    m_numActivePackets += m_newPacket;
+    m_totPacket += m_newPacket;
 }
 
 //* Return next location of packet according to 'm_strategy'
@@ -167,7 +190,7 @@ void Generator::movePackets() {
 
             //* Remove packet if it reaches to its destination
             if (nextIndex == p.destination) {
-                --m_numActivePackets;
+                --m_totPacket;
                 //?
                 // std::cout << ": Reached to destination\n";
             }

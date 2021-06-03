@@ -188,4 +188,6 @@ Thumbs.db
 bin/**
 # End of https://www.toptal.com/developers/gitignore/api/executable
 
+data/**
+fig/**
 JSL.hpp

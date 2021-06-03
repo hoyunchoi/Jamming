@@ -22,5 +22,5 @@ debugBuild
 # build
 
 #* Run
-# ./${binDir}/${name} ${networkSize} ${meanDegree} ${SIII} ${IR} ${randomSeed}
+# ./${binDir}/${name}
 # rm ${binDir}/${name}
