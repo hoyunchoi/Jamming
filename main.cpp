@@ -14,36 +14,38 @@
 int main() {
     //* ------------------------------------ Get input values ---------------------------------------
     //* Network structure parameters
-    const unsigned networkSize = 10000;
-    const unsigned long long linkSize = 150000;
+    const unsigned networkSize = 1000;
+    const unsigned long long linkSize = 15000;
     const double degreeExponent = 2.2;
     const int networkSeed = 0;
     pcg32 networkEngine(networkSeed);
 
     //* Jamming dynamics parameters
     const double strategy = 0.85;
-    const unsigned newPackets = 100;
-    const unsigned maxIteration = 4000;
+    const unsigned newPackets = 10;
+    const unsigned maxIteration = 40;
+    const unsigned timeWindow = 10;
     const int generatorSeed = 0;
-    pcg32 generatorEngine(generatorSeed);
+    const unsigned ensembleSize = 5;
+    if (timeWindow >= maxIteration){
+        std::cout << "Time Window is bigger than max iteration\n";
+        return 1;
+    }
+
     //* ------------------------------------------------------------------------------------------------
 
     //* --------------------------------------- Default values -----------------------------------------
 
     //* Data path
-    const std::string networkPrefix = Jamming::getNetworkName(std::make_tuple(networkSize,
-                                                                              linkSize,
-                                                                              degreeExponent,
-                                                                              networkSeed));
-    // const std::string dynamicsPrefix = Jamming::getDynamicsName(std::make_tuple(strategy,
-    //                                                                             newPackets,
-    //                                                                             maxIteration,
-    //                                                                             generatorSeed));
-    const std::string adjName = "Adj_" + networkPrefix + ".csv";
-    const std::string degreeName = "Degree_" + networkPrefix + ".csv";
-    const std::string distanceName = "Distance_" + networkPrefix + ".csv";
-    const std::string dataDirectory = "data/" + networkPrefix + "/";
-    CSV::generateDirectory(dataDirectory);
+    const std::string networkPrefix = Jamming::getNetworkPrefix(std::make_tuple(networkSize,
+                                                                                linkSize,
+                                                                                degreeExponent,
+                                                                                networkSeed));
+    const std::string dataDir = "data/" + networkPrefix + "/";
+    const std::string adjName = "Adjacency.csv";
+    const std::string degreeName = "DegreeDist.csv";
+    const std::string distanceName = "FullDistance.csv";
+    CSV::generateDirectory(dataDir);
 
     //* ------------------------------------------------------------------------------------------------
 
@@ -51,9 +53,9 @@ int main() {
     // const auto startNetworkGeneration = std::chrono::system_clock::now();
     // const Network<unsigned> network = CL::generate(networkSize, linkSize, degreeExponent, networkEngine);
     // const std::vector<std::vector<unsigned>> fullDistance = network.getFullDistance();
-    // network.printAdjacency(Jamming::networkDirectory + adjName);
-    // network.printDegreeDist(Jamming::networkDirectory + degreeName);
-    // CSV::write(Jamming::networkDirectory + distanceName, fullDistance);
+    // network.printAdjacency(dataDir + adjName);
+    // network.printDegreeDist(dataDir + degreeName);
+    // CSV::write(dataDir + distanceName, fullDistance);
     // const auto endNetworkGeneration = std::chrono::system_clock::now();
     // std::chrono::duration<double> networkGeneration = endNetworkGeneration - startNetworkGeneration;
     // std::cout << "Network Generation: " << std::setprecision(6) << networkGeneration.count() << " seconds\n";
@@ -63,22 +65,35 @@ int main() {
     const auto startNetworkLoading = std::chrono::system_clock::now();
     Network<unsigned> network;
     std::vector<std::vector<unsigned>> fullDistance;
-    network.loadAdjacency(Jamming::networkDirectory + adjName);
-    CSV::read(Jamming::networkDirectory + distanceName, fullDistance);
+    network.loadAdjacency(dataDir + adjName);
+    CSV::read(dataDir + distanceName, fullDistance);
     const auto endNetworkLoading = std::chrono::system_clock::now();
     std::chrono::duration<double> networkLoading = endNetworkLoading - startNetworkLoading;
     std::cout << "Network Loading: " << std::setprecision(6) << networkLoading.count() << " seconds\n";
     //* ------------------------------------------------------------------------------------------------
 
-    //* ------------------------------------ Make Generator and run ------------------------------------
+    //* ------------------------------------------- Single run -----------------------------------------
+    // const auto startGeneration = std::chrono::system_clock::now();
+    // Jamming::Generator generator(network, fullDistance, strategy, newPackets, timeWindow, generatorSeed);
+    // generator.singleRun(maxIteration);
+    // generator.saveSingleRun(dataDir);
+    // const auto endGeneration = std::chrono::system_clock::now();
+    // std::chrono::duration<double> generation = endGeneration - startGeneration;
+    // std::cout << "Generator run for " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
+    //* ------------------------------------------------------------------------------------------------
+
+
+    //* ------------------------------------------ Multiple run ----------------------------------------
     const auto startGeneration = std::chrono::system_clock::now();
-    Jamming::Generator generator(network, fullDistance, strategy, newPackets, generatorEngine);
-    generator.run(maxIteration);
-    generator.save(dataDirectory);
+    Jamming::Generator generator(network, fullDistance, strategy, newPackets, timeWindow, generatorSeed);
+    generator.multipleRun(maxIteration, ensembleSize);
+    generator.saveMultipleRun(dataDir);
     const auto endGeneration = std::chrono::system_clock::now();
     std::chrono::duration<double> generation = endGeneration - startGeneration;
-    std::cout << "Generator run for " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
+    std::cout << "Generator run for " << ensembleSize << " ensembles with " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
     //* ------------------------------------------------------------------------------------------------
+
+
 
     return 0;
 }

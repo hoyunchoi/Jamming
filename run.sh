@@ -18,9 +18,9 @@ function build {
 }
 
 #* Compile the source files
-debugBuild
-# build
+# debugBuild
+build
 
 #* Run
-# ./${binDir}/${name}
-# rm ${binDir}/${name}
+./${binDir}/${name}
+rm ${binDir}/${name}
