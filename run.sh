@@ -2,8 +2,9 @@
 
 
 strategy=$1
-packet=$2
-machine=$3
+packetRepeat=$2
+packet=$3
+machine=$4
 
 
-spg run ${machine} ./generate.sh ${strategy} ${packet}
+spg run ${machine} ./generate.sh ${strategy} ${packet} ${packetRepeat}

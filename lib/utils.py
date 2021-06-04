@@ -3,22 +3,23 @@ import typing
 import pandas as pd
 import numpy as np
 
+
 def set_default() -> argparse.Namespace:
     args = argparse.Namespace()
 
-    #* Network parameters
+    # * Network parameters
     args.network_size = 10000
     args.link_size = 25000
     args.degree_exponent = 2.2
     args.network_seed = 0
 
-    #* Dynamics parameters
+    # * Dynamics parameters
     args.strategy = 0.85
     args.packet = 10
     args.max_iteration = 10000
     args.dynamics_seed = 0
 
-    #* Observation parameters
+    # * Observation parameters
     args.steady = 1000
     args.time_window = 10
 
@@ -63,6 +64,7 @@ def history2op(raw: np.ndarray, param: argparse.Namespace) -> typing.Tuple[np.fl
     mean = np.mean(op)
     sem = np.std(op, ddof=1) / np.sqrt(len(op))
     return mean, sem
+
 
 if __name__ == "__main__":
     print("This is module read_data")

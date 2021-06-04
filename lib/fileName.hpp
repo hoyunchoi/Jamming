@@ -32,7 +32,7 @@ const std::string getDynamicsPrefix(const std::tuple<double, unsigned, unsigned,
     }
 }
 
-const std::string getDynamicsPrefixWOPacket(const std::tuple<double, unsigned, int>& t_prefix){
+const std::string getDynamicsPrefixWOPacket(const std::tuple<double, unsigned, int>& t_prefix) {
     std::string prefix = "S" + to_stringWithPrecision(std::get<0>(t_prefix), 2);
     prefix += "I" + std::to_string(std::get<1>(t_prefix));
     const int randomEngineSeed = std::get<2>(t_prefix);
@@ -41,7 +41,6 @@ const std::string getDynamicsPrefixWOPacket(const std::tuple<double, unsigned, i
     } else {
         return prefix + "-" + std::to_string(std::get<2>(t_prefix));
     }
-
 }
 
 } // namespace Jamming
