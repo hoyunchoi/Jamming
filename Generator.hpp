@@ -26,7 +26,7 @@ struct Generator {
 
     //* Dynamics parameters
     double m_strategy;
-    double m_newPacket;
+    unsigned m_newPacket;
     unsigned m_maxIteration;
     unsigned m_timeWindow;
 
@@ -36,10 +36,10 @@ struct Generator {
     std::uniform_int_distribution<unsigned> m_nodeDistribution;
 
     //* Save the information of dynamics
+    std::set<unsigned> m_isolated;
     unsigned m_totPacket;
     std::vector<unsigned> obs_totPacketHistory;
     std::vector<std::vector<unsigned>> obs_routerQueue;
-    std::vector<double> obs_orderParameter;
 
     //* --------------------------- functions --------------------------------
   public:
@@ -53,24 +53,21 @@ struct Generator {
               const int& = 0);                           //* Random Engine Seed
 
     //* Run the generator
-    void singleRun(const unsigned&);
-    void multipleRun(const unsigned&, const unsigned&);
+    void run(const unsigned&);
+    void multipleRun(const unsigned&, const std::vector<unsigned>&, const std::string&);
 
     //* Save
-    void saveSingleRun(const std::string&) const;
-    void saveMultipleRun(const std::string&) const;
+    void save(const std::string&) const;
 
   protected:
-    void getFullDistance(const std::vector<std::set<unsigned>>&);
+    const std::set<unsigned> getIsolated() const;
     void generatePackets();
     void movePackets();
-    const double getOrderParameter() const;
     const unsigned getNextLocation(const unsigned&, const unsigned&) const;
 
   private:
     //* Remain network and hyper parameters. Clear dynamics information
-    //* Keep obs_orderparameter
-    void clear();
+    void reset(const unsigned&);
 };
 
 Generator::Generator(const Network<unsigned>& t_network,
@@ -93,6 +90,8 @@ Generator::Generator(const Network<unsigned>& t_network,
         m_routers.emplace_back(router);
     }
 
+    m_isolated = getIsolated();
+
     //* Random variables
     m_nodeDistribution.param(std::uniform_int_distribution<unsigned>::param_type(0, m_networkSize - 1));
     m_randomEngineSeed == -1 ? m_randomEngine.seed((std::random_device())()) : m_randomEngine.seed(m_randomEngineSeed);
@@ -101,9 +100,19 @@ Generator::Generator(const Network<unsigned>& t_network,
     m_totPacket = 0;
 }
 
-void Generator::clear() {
+const std::set<unsigned> Generator::getIsolated() const {
+    std::set<unsigned> isolated;
+    for (unsigned index = 1; index < m_networkSize; ++index) {
+        if (m_fullDistance[0][index] == 0) {
+            isolated.emplace_hint(isolated.end(), index);
+        }
+    }
+    return isolated;
+}
+
+void Generator::reset(const unsigned& t_newPacket) {
     //* Clear router queue
-    for (const unsigned index : m_activeIndex){
+    for (const unsigned index : m_activeIndex) {
         m_routers[index].queue.clear();
     }
     m_activeIndex.clear();
@@ -112,9 +121,13 @@ void Generator::clear() {
     m_totPacket = 0;
     obs_totPacketHistory.clear();
     obs_routerQueue.clear();
+
+    //* Set parameters
+    m_newPacket = t_newPacket;
+    m_randomEngineSeed == -1 ? m_randomEngine.seed((std::random_device())()) : m_randomEngine.seed(m_randomEngineSeed);
 }
 
-void Generator::singleRun(const unsigned& t_maxIteration) {
+void Generator::run(const unsigned& t_maxIteration) {
     m_maxIteration = t_maxIteration;
     obs_totPacketHistory.assign(m_maxIteration, 0);
     obs_routerQueue.reserve(m_maxIteration);
@@ -138,34 +151,17 @@ void Generator::singleRun(const unsigned& t_maxIteration) {
         }
     }
 }
-
-void Generator::multipleRun(const unsigned& t_maxIteration, const unsigned& t_ensembleSize) {
-    m_maxIteration = t_maxIteration;
-    obs_orderParameter.assign(t_ensembleSize, 0.0);
-
-    //* Run ensemble size time
-    for (unsigned ensemble = 0; ensemble < t_ensembleSize; ++ensemble) {
-        clear();
-        obs_totPacketHistory.assign(m_maxIteration, 0);
-        for (unsigned iter = 0; iter < m_maxIteration; ++iter) {
-            generatePackets();
-            movePackets();
-            //! Total packet history
-            {
-                obs_totPacketHistory[iter] = m_totPacket;
-            }
-        }
-        //* Calculate order parameter
-        obs_orderParameter[ensemble] = getOrderParameter();
+void Generator::multipleRun(const unsigned& t_maxIteration,
+                            const std::vector<unsigned>& t_packetList,
+                            const std::string& t_dirPath) {
+    for (const unsigned& newPacket : t_packetList) {
+        reset(newPacket);
+        run(t_maxIteration);
+        save(t_dirPath);
     }
 }
 
-const double Generator::getOrderParameter() const {
-    const double orderParameter = (double)(obs_totPacketHistory[m_maxIteration - 1] - obs_totPacketHistory[m_maxIteration - m_timeWindow - 1]) / (m_timeWindow * m_newPacket);
-    return orderParameter;
-}
-
-void Generator::saveSingleRun(const std::string& t_dirPath) const {
+void Generator::save(const std::string& t_dirPath) const {
     //* Prefix of dynamics
     const std::string dynamicsPrefix = getDynamicsPrefix(std::make_tuple(m_strategy,
                                                                          m_newPacket,
@@ -175,16 +171,8 @@ void Generator::saveSingleRun(const std::string& t_dirPath) const {
     {
         const std::string totPacketDir = t_dirPath + "totPacket/";
         CSV::generateDirectory(totPacketDir);
-        CSV::write(totPacketDir + dynamicsPrefix + ".csv", obs_totPacketHistory);
-    }
-
-    //! Order parameter
-    {
-        const std::string orderParameterDir = t_dirPath + "orderParameter/";
-        CSV::generateDirectory(orderParameterDir);
-        std::ofstream writeFile(orderParameterDir + dynamicsPrefix + ".csv", std::ios_base::app);
-        writeFile.precision(std::numeric_limits<double>::digits10 + 1);
-        writeFile << getOrderParameter() << "\n";
+        const std::string filePath = totPacketDir + dynamicsPrefix + ".csv";
+        CSV::write(filePath, obs_totPacketHistory);
     }
 
     //! Router queue
@@ -192,21 +180,6 @@ void Generator::saveSingleRun(const std::string& t_dirPath) const {
         const std::string queDir = t_dirPath + "routerQueue/";
         CSV::generateDirectory(queDir);
         CSV::write(queDir + dynamicsPrefix + ".csv", obs_routerQueue);
-    }
-}
-
-void Generator::saveMultipleRun(const std::string& t_dirPath) const {
-    //* Prefix of dynamics
-    const std::string dynamicsPrefix = getDynamicsPrefix(std::make_tuple(m_strategy,
-                                                                         m_newPacket,
-                                                                         m_maxIteration,
-                                                                         m_randomEngineSeed));
-
-    //! Order Parameter
-    {
-        const std::string orderParameterDir = t_dirPath + "orderParameter/";
-        CSV::generateDirectory(orderParameterDir);
-        CSV::write(orderParameterDir + dynamicsPrefix + ".csv", obs_orderParameter, -1);
     }
 }
 
@@ -218,8 +191,14 @@ void Generator::generatePackets() {
     //* Generator new packets for 'm_newPacket' times
     for (unsigned i = 0; i < m_newPacket; ++i) {
         //* Randomly choose initial location and destination
-        const unsigned initial = m_nodeDistribution(m_randomEngine);
-        const unsigned destination = m_nodeDistribution(m_randomEngine);
+        unsigned initial;
+        do {
+            initial = m_nodeDistribution(m_randomEngine);
+        } while (m_isolated.find(initial) != m_isolated.end());
+        unsigned destination;
+        do {
+            destination = m_nodeDistribution(m_randomEngine);
+        } while (m_isolated.find(destination) != m_isolated.end() || destination == initial);
 
         //* Generator packet at the initial location
         Packet packet(destination);

@@ -11,22 +11,21 @@
 #include "Generator.hpp"
 #include "fileName.hpp"
 
-int main() {
+int main(int argc, char* argv[]) {
     //* ------------------------------------ Get input values ---------------------------------------
     //* Network structure parameters
-    const unsigned networkSize = 1000;
-    const unsigned long long linkSize = 15000;
+    const unsigned networkSize = 10000;
+    const unsigned long long linkSize = 25000;
     const double degreeExponent = 2.2;
     const int networkSeed = 0;
     pcg32 networkEngine(networkSeed);
 
     //* Jamming dynamics parameters
-    const double strategy = 0.85;
-    const unsigned newPackets = 10;
-    const unsigned maxIteration = 40;
+    const double strategy = std::stod(argv[1]);
+    const unsigned newPackets = std::stoul(argv[2]);
+    const unsigned maxIteration = 10000;
     const unsigned timeWindow = 10;
     const int generatorSeed = 0;
-    const unsigned ensembleSize = 5;
     if (timeWindow >= maxIteration){
         std::cout << "Time Window is bigger than max iteration\n";
         return 1;
@@ -43,7 +42,6 @@ int main() {
                                                                                 networkSeed));
     const std::string dataDir = "data/" + networkPrefix + "/";
     const std::string adjName = "Adjacency.csv";
-    const std::string degreeName = "DegreeDist.csv";
     const std::string distanceName = "FullDistance.csv";
     CSV::generateDirectory(dataDir);
 
@@ -54,7 +52,6 @@ int main() {
     // const Network<unsigned> network = CL::generate(networkSize, linkSize, degreeExponent, networkEngine);
     // const std::vector<std::vector<unsigned>> fullDistance = network.getFullDistance();
     // network.printAdjacency(dataDir + adjName);
-    // network.printDegreeDist(dataDir + degreeName);
     // CSV::write(dataDir + distanceName, fullDistance);
     // const auto endNetworkGeneration = std::chrono::system_clock::now();
     // std::chrono::duration<double> networkGeneration = endNetworkGeneration - startNetworkGeneration;
@@ -73,25 +70,25 @@ int main() {
     //* ------------------------------------------------------------------------------------------------
 
     //* ------------------------------------------- Single run -----------------------------------------
-    // const auto startGeneration = std::chrono::system_clock::now();
-    // Jamming::Generator generator(network, fullDistance, strategy, newPackets, timeWindow, generatorSeed);
-    // generator.singleRun(maxIteration);
-    // generator.saveSingleRun(dataDir);
-    // const auto endGeneration = std::chrono::system_clock::now();
-    // std::chrono::duration<double> generation = endGeneration - startGeneration;
-    // std::cout << "Generator run for " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
-    //* ------------------------------------------------------------------------------------------------
-
-
-    //* ------------------------------------------ Multiple run ----------------------------------------
     const auto startGeneration = std::chrono::system_clock::now();
     Jamming::Generator generator(network, fullDistance, strategy, newPackets, timeWindow, generatorSeed);
-    generator.multipleRun(maxIteration, ensembleSize);
-    generator.saveMultipleRun(dataDir);
+    generator.run(maxIteration);
+    generator.save(dataDir);
     const auto endGeneration = std::chrono::system_clock::now();
     std::chrono::duration<double> generation = endGeneration - startGeneration;
-    std::cout << "Generator run for " << ensembleSize << " ensembles with " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
+    std::cout << "Generator run for " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
     //* ------------------------------------------------------------------------------------------------
+
+    //* ------------------------------------------- Multiple run -----------------------------------------
+    // const auto startGeneration = std::chrono::system_clock::now();
+    // const std::vector<unsigned> packetList = linearAlgebra::arange(newPackets, newPackets+10, (unsigned)1);
+    // Jamming::Generator generator(network, fullDistance, strategy, newPackets, timeWindow, generatorSeed);
+    // generator.multipleRun(maxIteration, packetList, dataDir);
+    // const auto endGeneration = std::chrono::system_clock::now();
+    // std::chrono::duration<double> generation = endGeneration - startGeneration;
+    // std::cout << "Generator run for 10 ensembles " << maxIteration << " times: " << std::setprecision(6) << generation.count() << " seconds\n";
+    //* ------------------------------------------------------------------------------------------------
+
 
 
 
